@@ -216,3 +216,12 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# AWS build artifacts - too large / environment-specific to commit
+layer-build/
+function-deploy.zip
+*.zip
+
+# Never commit credentials
+.env
+*credentials*

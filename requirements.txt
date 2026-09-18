@@ -1,0 +1,10 @@
+# Note: onnxruntime and psycopg2-binary must be installed with
+# --platform manylinux_2_28_x86_64 --implementation cp --python-version 3.12
+# --only-binary=:all: to get Lambda-compatible binaries (see README Adaptations #6)
+onnxruntime
+tokenizers
+numpy
+huggingface-hub
+psycopg2-binary
+requests
+boto3
