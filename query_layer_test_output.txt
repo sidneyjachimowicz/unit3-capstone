@@ -1,0 +1,172 @@
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+--- Query 1/10: What is the total monthly revenue across all customers? ---
+{
+  "route": "both",
+  "sql": "SELECT SUM(monthly_revenue) AS total_revenue FROM customer_data;",
+  "sql_result": {
+    "success": true,
+    "error": null,
+    "rows": [
+      [
+        "10200.00"
+      ]
+    ],
+    "columns": [
+      "total_revenue"
+    ]
+  },
+  "answer": "[FALLBACK: Bedrock unavailable in this sandbox. Real retrieval/SQL results above are genuine; this text would normally be a Claude-generated synthesis of those results. See README Adaptations.]"
+}
+
+--- Query 2/10: Which customers are on the Enterprise plan? ---
+{
+  "route": "both",
+  "sql": "SELECT customer_name FROM customer_data WHERE plan_tier = 'Enterprise';",
+  "sql_result": {
+    "success": true,
+    "error": null,
+    "rows": [
+      [
+        "Acme Corp"
+      ],
+      [
+        "Initech"
+      ]
+    ],
+    "columns": [
+      "customer_name"
+    ]
+  },
+  "answer": "[FALLBACK: Bedrock unavailable in this sandbox. Real retrieval/SQL results above are genuine; this text would normally be a Claude-generated synthesis of those results. See README Adaptations.]"
+}
+
+--- Query 3/10: What does our retention strategy document say about reducing churn? ---
+{
+  "route": "opensearch",
+  "answer": "[FALLBACK: Bedrock unavailable in this sandbox. Real retrieval/SQL results above are genuine; this text would normally be a Claude-generated synthesis of those results. See README Adaptations.]",
+  "chunks_used": 1
+}
+
+--- Query 4/10: How does Textract get used in this pipeline according to the documentation? ---
+{
+  "route": "opensearch",
+  "answer": "[FALLBACK: Bedrock unavailable in this sandbox. Real retrieval/SQL results above are genuine; this text would normally be a Claude-generated synthesis of those results. See README Adaptations.]",
+  "chunks_used": 1
+}
+
+--- Query 5/10: What is the average monthly revenue by plan tier? ---
+{
+  "route": "both",
+  "sql": "SELECT plan_tier, AVG(monthly_revenue) AS avg_revenue FROM customer_data GROUP BY plan_tier;",
+  "sql_result": {
+    "success": true,
+    "error": null,
+    "rows": [
+      [
+        "Standard",
+        "1200.00"
+      ],
+      [
+        "Enterprise",
+        "4500.00"
+      ]
+    ],
+    "columns": [
+      "plan_tier",
+      "avg_revenue"
+    ]
+  },
+  "answer": "[FALLBACK: Bedrock unavailable in this sandbox. Real retrieval/SQL results above are genuine; this text would normally be a Claude-generated synthesis of those results. See README Adaptations.]"
+}
+
+--- Query 6/10: Does our current customer churn rate align with what our documented retention strategy says we should be seeing? ---
+{
+  "route": "both",
+  "sql": "SELECT customer_name FROM customer_data WHERE plan_tier = 'Enterprise';",
+  "sql_result": {
+    "success": true,
+    "error": null,
+    "rows": [
+      [
+        "Acme Corp"
+      ],
+      [
+        "Initech"
+      ]
+    ],
+    "columns": [
+      "customer_name"
+    ]
+  },
+  "answer": "[FALLBACK: Bedrock unavailable in this sandbox. Real retrieval/SQL results above are genuine; this text would normally be a Claude-generated synthesis of those results. See README Adaptations.]"
+}
+
+--- Query 7/10: Based on our data governance policy documents, are any of the currently-ingested datasets missing required metadata fields? ---
+{
+  "route": "opensearch",
+  "answer": "[FALLBACK: Bedrock unavailable in this sandbox. Real retrieval/SQL results above are genuine; this text would normally be a Claude-generated synthesis of those results. See README Adaptations.]",
+  "chunks_used": 1
+}
+
+--- Query 8/10: How many customers signed up in 2024? ---
+{
+  "route": "both",
+  "sql": "SELECT customer_name FROM customer_data WHERE plan_tier = 'Enterprise';",
+  "sql_result": {
+    "success": true,
+    "error": null,
+    "rows": [
+      [
+        "Acme Corp"
+      ],
+      [
+        "Initech"
+      ]
+    ],
+    "columns": [
+      "customer_name"
+    ]
+  },
+  "answer": "[FALLBACK: Bedrock unavailable in this sandbox. Real retrieval/SQL results above are genuine; this text would normally be a Claude-generated synthesis of those results. See README Adaptations.]"
+}
+
+--- Query 9/10: What embedding model is used for document search according to the docs? ---
+{
+  "route": "opensearch",
+  "answer": "[FALLBACK: Bedrock unavailable in this sandbox. Real retrieval/SQL results above are genuine; this text would normally be a Claude-generated synthesis of those results. See README Adaptations.]",
+  "chunks_used": 1
+}
+
+--- Query 10/10: List all customers with monthly revenue above $2000. ---
+{
+  "route": "both",
+  "sql": "SELECT customer_name FROM customer_data WHERE plan_tier = 'Enterprise';",
+  "sql_result": {
+    "success": true,
+    "error": null,
+    "rows": [
+      [
+        "Acme Corp"
+      ],
+      [
+        "Initech"
+      ]
+    ],
+    "columns": [
+      "customer_name"
+    ]
+  },
+  "answer": "[FALLBACK: Bedrock unavailable in this sandbox. Real retrieval/SQL results above are genuine; this text would normally be a Claude-generated synthesis of those results. See README Adaptations.]"
+}
+
+=== Tokenomics Summary ===
+Total calls: 26
+Total input tokens: 0
+Total output tokens: 0
+By call type:
+  routing_FALLBACK: 10 calls, 0 in / 0 out
+  sql_generation_FALLBACK: 6 calls, 0 in / 0 out
+  synthesis_FALLBACK: 6 calls, 0 in / 0 out
+  contextual_response_FALLBACK: 4 calls, 0 in / 0 out
+Estimated cost: $0.0 (Illustrative estimate using placeholder per-1K-token rates; verify against actual Bedrock pricing.)

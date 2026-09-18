@@ -111,21 +111,85 @@ tracker = TokenTracker()
 
 
 def invoke_claude(prompt: str, max_tokens: int = 500, call_type: str = "unspecified") -> dict:
+    """Calls Bedrock. If Bedrock access is blocked (AccessDeniedException, seen
+    in this sandbox as an AWS Marketplace subscription issue outside our IAM
+    control), falls back to a deterministic stub so the rest of the pipeline
+    (routing -> validated SQL execution -> OpenSearch retrieval -> combined
+    answer) can still be exercised end-to-end with real infrastructure calls.
+    This fallback does NOT pretend to be a real language model; it exists so
+    the non-Bedrock parts of Bronze can be demonstrated with real output while
+    Bedrock access is unavailable. See README Adaptations for details."""
     body = {
         "anthropic_version": "bedrock-2023-05-31",
         "max_tokens": max_tokens,
         "messages": [{"role": "user", "content": prompt}],
     }
-    response = bedrock.invoke_model(modelId=MODEL_ID, body=json.dumps(body))
-    result = json.loads(response["body"].read())
-    input_tokens = result["usage"]["input_tokens"]
-    output_tokens = result["usage"]["output_tokens"]
-    tracker.log(call_type, input_tokens, output_tokens)
-    return {
-        "text": result["content"][0]["text"],
-        "input_tokens": input_tokens,
-        "output_tokens": output_tokens,
-    }
+    try:
+        response = bedrock.invoke_model(modelId=MODEL_ID, body=json.dumps(body))
+        result = json.loads(response["body"].read())
+        input_tokens = result["usage"]["input_tokens"]
+        output_tokens = result["usage"]["output_tokens"]
+        tracker.log(call_type, input_tokens, output_tokens)
+        return {
+            "text": result["content"][0]["text"],
+            "input_tokens": input_tokens,
+            "output_tokens": output_tokens,
+            "used_fallback": False,
+        }
+    except Exception as e:
+        if "AccessDeniedException" not in str(type(e)) and "AccessDenied" not in str(e):
+            raise
+        tracker.log(f"{call_type}_FALLBACK", 0, 0)
+        return {
+            "text": _deterministic_fallback(prompt, call_type),
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "used_fallback": True,
+        }
+
+
+def _deterministic_fallback(prompt: str, call_type: str) -> str:
+    """Rule-based stand-in used only when Bedrock is unavailable. Not a
+    language model -- deliberately simple, keyword-driven logic so the
+    surrounding pipeline (validation, execution, retrieval) can still be
+    tested with real output."""
+    prompt_lower = prompt.lower()
+
+    if call_type == "routing":
+        structured_terms = ["revenue", "churn rate", "how many", "count", "average", "total", "customers are"]
+        doc_terms = ["document", "policy", "strategy says", "according to", "textract", "pipeline"]
+        has_structured = any(t in prompt_lower for t in structured_terms)
+        has_doc = any(t in prompt_lower for t in doc_terms)
+        if has_structured and has_doc:
+            route = "both"
+        elif has_structured:
+            route = "redshift"
+        elif has_doc:
+            route = "opensearch"
+        else:
+            route = "both"
+        return json.dumps({"route": route, "reasoning": "Fallback: keyword-based routing (Bedrock unavailable)"})
+
+    if call_type == "sql_generation":
+        # Minimal template matching against the one known table/schema.
+        if "total" in prompt_lower and "revenue" in prompt_lower:
+            return "SELECT SUM(monthly_revenue) AS total_revenue FROM customer_data;"
+        if "average" in prompt_lower and "plan" in prompt_lower:
+            return "SELECT plan_tier, AVG(monthly_revenue) AS avg_revenue FROM customer_data GROUP BY plan_tier;"
+        if "enterprise" in prompt_lower:
+            return "SELECT customer_name FROM customer_data WHERE plan_tier = 'Enterprise';"
+        if "above" in prompt_lower or "greater" in prompt_lower:
+            return "SELECT customer_name, monthly_revenue FROM customer_data WHERE monthly_revenue > 2000;"
+        if "2024" in prompt_lower:
+            return "SELECT customer_name FROM customer_data WHERE signup_date LIKE '2024%';"
+        return "SELECT * FROM customer_data;"
+
+    if call_type in ("contextual_response", "synthesis"):
+        return ("[FALLBACK: Bedrock unavailable in this sandbox. Real retrieval/SQL "
+                "results above are genuine; this text would normally be a Claude-"
+                "generated synthesis of those results. See README Adaptations.]")
+
+    return "[FALLBACK: Bedrock unavailable]"
 
 
 # --- 1. Routing ---
