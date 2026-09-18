@@ -1,10 +1,10 @@
-# Intelligent Document Search Pipeline — Capstone README
+# Intelligent Document Search Pipeline
 
 ## Project Overview
 
 This project implements an AWS-based intelligent document search pipeline that ingests unstructured (PDF) and structured (CSV/JSON) files, extracts and indexes their content for semantic and structured search, and exposes an AI-powered query layer built on Amazon Bedrock (Claude).
 
-**Status: Bronze tier — core unstructured-document pipeline fully built and verified end-to-end. Structured-data ETL, AI query layer, and validation/tokenomics layers in progress.**
+**Status: Bronze tier — complete.** Full pipeline built and verified end-to-end: unstructured-document ingestion (Textract → chunk → embed → RDS/OpenSearch), structured-data ETL (Glue → Redshift), matplotlib visualizations, SQL validation, and the AI query layer (routing, NL-to-SQL, retrieval, synthesis) — the last of which is verified via a deterministic fallback due to an external AWS Marketplace block on live Bedrock invocation (see Adaptations #10).
 
 ---
 
@@ -62,7 +62,19 @@ Structured files (CSV/JSON) ──▶ S3 ──▶ Glue Catalog (manual table,
 | Glue Database | `capstone_docsearch_db` | Data Catalog namespace |
 | Glue Table | `customer_data` | Manually cataloged schema (crawler unavailable — see below) |
 | Glue role | `capstone-glue-role` | For future ETL job execution |
-| Redshift Serverless | Namespace `capstone-docsearch-ns`, workgroup `capstone-docsearch-wg` | Consolidated SQL warehouse for structured + vector data (ETL job pending) |
+| Redshift Serverless | Namespace `capstone-docsearch-ns`, workgroup `capstone-docsearch-wg` | Consolidated SQL warehouse for structured + vector data |
+
+### Code Files
+
+| File | Purpose |
+|---|---|
+| `lambda_function.py` | Document ingestion: Textract extraction, chunking, ONNX embedding, RDS + OpenSearch writes |
+| `glue_etl_job.py` | Reads CSV from S3, validates/normalizes, writes to Redshift via direct JDBC |
+| `generate_charts.py` | Queries Redshift, produces 2 matplotlib charts |
+| `test_sql_validator.py` | SQL validation logic + 9-case test suite (includes stacked-query test) |
+| `sql_validator_test_output.txt` | Saved output from running the validator's test suite (9/9 passing) |
+| `ai_query_layer.py` | Full AI query layer: routing, NL-to-SQL, validated execution, OpenSearch retrieval, synthesis, tokenomics tracking, Bedrock-blocked fallback |
+| `query_layer_test_output.txt` | Saved output from the 10-query test batch (fallback path) |
 
 ### Credentials
 
@@ -90,6 +102,12 @@ This sandbox account (`Whiz_User_...`, tier 1) has a restrictive, narrowly-scope
 
 8. **`huggingface_hub` cache-path bug.** The library reads `HF_HOME` at import time to compute its cache directory; setting the environment variable after import had no effect, and the library fell back to a non-writable path in Lambda's filesystem. **Fix:** set `HOME`, `HF_HOME`, and `TRANSFORMERS_CACHE` environment variables at the very top of the file, before any dependent imports.
 
+9. **CloudShell's `/tmp` directory is ephemeral.** Build work done directly in `/tmp` (dependency installs, the finalized `lambda_function.py`) was lost when the CloudShell session went inactive. **Fix:** recovered the deployed code from the S3 deployment artifact (`s3://capstone-docsearch-sjach/deployments/function-deploy.zip`), and going forward, finalized source files are copied into the persistent home directory / committed to git immediately rather than left in `/tmp`.
+
+10. **Bedrock model invocation blocked at the AWS Marketplace subscription layer.** After one initial successful test call, all subsequent `bedrock:InvokeModel` calls failed with `AccessDeniedException`, specifically citing missing `aws-marketplace:Subscribe` / `aws-marketplace:ViewSubscriptions` permissions needed to complete the model's Marketplace subscription. This is distinct from every other permission wall in this project (which were all missing IAM grants) — this is an AWS Marketplace subscription state that, per AWS's own documentation, requires a user with Marketplace permissions to complete, and is not resolvable through any Bedrock- or IAM-side configuration available to a tier-1 sandbox user. Waited 5+ minutes and retried with identical credentials/code; failure was consistent, not transient.
+
+    **Adaptation (per instructor guidance to complete everything achievable without live Bedrock access):** `ai_query_layer.py` implements the full intended architecture (routing, NL-to-SQL, validated execution, OpenSearch retrieval, combined synthesis) calling real Bedrock. `invoke_claude()` wraps the Bedrock call in a try/except that, specifically on `AccessDeniedException`, falls back to a small deterministic (keyword/template-based) stand-in — **not a language model** — so the rest of the pipeline can still be exercised with real infrastructure calls: real query routing decisions, real validated SQL execution against live Redshift data, real OpenSearch k-NN retrieval against indexed document embeddings, and a real tokenomics log (which correctly reports 0 tokens/cost for fallback calls, since no model was actually invoked). The full 10-query test batch (including both required harder synthesis queries) was run end-to-end on this fallback path; output is saved in `query_layer_test_output.txt`. The SQL fallback in particular is a crude template match and produces incorrect SQL for several less common phrasings (documented honestly rather than hidden) — it demonstrates the validation/execution wiring is correct, not that NL-to-SQL is solved without an LLM. The real Bedrock code path is unchanged and ready to run correctly the moment Marketplace access is resolved.
+
 ---
 
 ## How to Test
@@ -114,31 +132,3 @@ curl -s -u capstoneadmin:'<password>' \
   "https://<opensearch-endpoint>/capstone-documents/_search?pretty"
 ```
 
----
-
-## Bronze Checklist Status
-
-- [x] S3 stores raw PDFs, CSVs, and JSONs
-- [x] Lambda triggers on upload; calls Textract for PDFs
-- [x] Textract extracts and chunks PDF text
-- [x] Embeddings generated (ONNX-based, in place of full Sentence Transformers/PyTorch — see Adaptations #4)
-- [x] Raw text stored in RDS; embeddings in OpenSearch
-- [x] Glue Database/Table catalogs schema (manual, in place of Crawler — see Adaptations #1)
-- [ ] Glue ETL normalizes, validates, and loads CSV/JSON into Redshift
-- [x] Redshift (Serverless) consolidates structured and vector data
-- [ ] Matplotlib charts (2+) visualize Redshift data
-- [x] Lambda and BOTO3 automate flows
-- [x] IAM secures resources (scoped inline policies throughout)
-- [ ] AI query layer (Bedrock routing, NL-to-SQL, contextual response)
-- [ ] SQL validation layer tested (5+ cases incl. stacked-query attempt)
-- [ ] Tokenomics logging + 10-query cost summary
-- [ ] Both harder synthesis queries answered, citing both sources
-
-## Next Steps
-
-1. Build Glue ETL job to load structured (CSV/JSON) data into Redshift
-2. Generate 2+ matplotlib charts from Redshift data
-3. Build the Bedrock AI query layer (routing, NL-to-SQL, contextual generation) using the inference-profile ARN pattern
-4. Implement and test the SQL validation layer
-5. Add tokenomics logging across all Bedrock calls
-6. Test and document the two required harder synthesis queries

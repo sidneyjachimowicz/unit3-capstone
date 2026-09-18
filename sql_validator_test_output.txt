@@ -1,0 +1,37 @@
+[PASS] Valid simple SELECT
+       Query: SELECT customer_name, monthly_revenue FROM customer_data;
+       Expected valid=True, got valid=True (OK)
+
+[PASS] Valid SELECT with WHERE and JOIN
+       Query: SELECT c.customer_name FROM customer_data c JOIN plans p ON c.plan_tier = p.tier WHERE p.active = true;
+       Expected valid=True, got valid=True (OK)
+
+[PASS] Stacked query attempt (SELECT + DROP TABLE)
+       Query: SELECT * FROM customer_data; DROP TABLE customer_data;
+       Expected valid=False, got valid=False (Blocked: DROP not permitted)
+
+[PASS] Direct DELETE statement
+       Query: DELETE FROM customer_data WHERE customer_id = '1001';
+       Expected valid=False, got valid=False (Blocked: DELETE not permitted)
+
+[PASS] Direct UPDATE statement
+       Query: UPDATE customer_data SET monthly_revenue = 0;
+       Expected valid=False, got valid=False (Blocked: UPDATE not permitted)
+
+[PASS] INSERT statement
+       Query: INSERT INTO customer_data VALUES ('9999', 'Fake Corp', '2026-01-01', 'Enterprise', 999.99);
+       Expected valid=False, got valid=False (Blocked: INSERT not permitted)
+
+[PASS] Non-SELECT read attempt (SHOW TABLES-style)
+       Query: SHOW TABLES;
+       Expected valid=False, got valid=False (Only SELECT queries are permitted)
+
+[PASS] Keyword hidden mid-query (ALTER inside subquery)
+       Query: SELECT * FROM (ALTER TABLE customer_data ADD COLUMN x INT) AS sub;
+       Expected valid=False, got valid=False (Blocked: ALTER not permitted)
+
+[PASS] Valid SELECT with aggregate and GROUP BY
+       Query: SELECT plan_tier, COUNT(*), AVG(monthly_revenue) FROM customer_data GROUP BY plan_tier;
+       Expected valid=True, got valid=True (OK)
+
+--- 9/9 tests passed, 0 failed ---
